@@ -7,8 +7,8 @@ import joblib
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from utils.weather import fetch_weather_data, estimate_vacuum_value
-from utils.preprocessor import preprocess_input
+from backend.utils.weather import fetch_weather_data, estimate_vacuum_value
+from backend.utils.preprocessor import preprocess_input
 
 load_dotenv()
 
