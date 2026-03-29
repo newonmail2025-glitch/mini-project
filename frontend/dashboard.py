@@ -42,13 +42,38 @@ RATED_CAPACITY = 480.0
 
 @st.cache_resource
 def load_industrial_model():
-    try:
-        if os.path.exists(MODEL_PATH):
-            m = tf.keras.models.load_model(MODEL_PATH)
-            s = joblib.load(SCALER_PATH)
-            return m, s
-    except Exception as e:
-        st.error(f"ENGINE_FAILURE: {e}")
+    # Final Root Path Resolution
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    PROJECT_ROOT = os.path.dirname(BASE_DIR)
+    
+    # Strategy 1: Absolute Project Root (Monolith standard)
+    p1 = os.path.normpath(os.path.join(PROJECT_ROOT, "backend", "model", "energy_model.keras"))
+    s1 = os.path.normpath(os.path.join(PROJECT_ROOT, "backend", "model", "scaler.pkl"))
+    
+    # Strategy 2: Relative Root
+    p2 = os.path.normpath(os.path.join(BASE_DIR, "..", "backend", "model", "energy_model.keras"))
+    s2 = os.path.normpath(os.path.join(BASE_DIR, "..", "backend", "model", "scaler.pkl"))
+
+    paths_to_check = [p1, p2]
+    scalers_to_check = [s1, s2]
+
+    print(f"📡 [ENGINE_DIAGNOSTIC] Probing Model Paths: {paths_to_check}")
+    
+    for i in range(len(paths_to_check)):
+        m_path = paths_to_check[i]
+        s_path = scalers_to_check[i]
+        
+        if os.path.exists(m_path) and os.path.exists(s_path):
+            try:
+                print(f"✅ [ENGINE_DIAGNOSTIC] Found Model at: {m_path}")
+                m = tf.keras.models.load_model(m_path)
+                s = joblib.load(s_path)
+                return m, s
+            except Exception as e:
+                print(f"❌ [ENGINE_DIAGNOSTIC] Load failure at {m_path}: {e}")
+                st.error(f"ENGINE_LOAD_ERROR: {e}")
+
+    print("❌ [ENGINE_DIAGNOSTIC] All model search strategy FAILED.")
     return None, None
 
 model, scaler = load_industrial_model()
