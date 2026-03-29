@@ -6,6 +6,7 @@ import time
 import numpy as np
 import pymongo
 import bcrypt
+from database import init_db, save_prediction, get_history, clear_history
 import os
 from dotenv import load_dotenv
 
