@@ -6,13 +6,17 @@ import time
 import numpy as np
 import pymongo
 import bcrypt
-from database import init_db, save_prediction, get_history, clear_history
+import os
+from dotenv import load_dotenv
+
+# Load Environment Variables
+load_dotenv()
 
 init_db()
 
 st.set_page_config(page_title="PowerPlant AI", page_icon="⚡", layout="wide", initial_sidebar_state="collapsed")
 
-API_BASE = "http://localhost:8000"
+API_BASE = os.getenv("API_BASE", "http://localhost:8000")
 RATED_CAPACITY = 480.0
 
 # Major Indian Cities for Dropdown
@@ -26,13 +30,14 @@ INDIAN_CITIES = sorted([
 ])
 
 # ─── Data Persistence (MongoDB) ───
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://newonmail2025_db_user:lnMF2HdG3CHIEs4Q@cluster0.01ppf5e.mongodb.net/?appName=Cluster0")
 try:
-    client = pymongo.MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=2000)
+    client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client["powerplant_ai"]
     users_col = db["users"]
     client.server_info() # Test connection
-except:
-    st.warning("⚠️ Local MongoDB not detected. Running in Sandbox Mode (Authentication results are simulated).")
+except Exception as e:
+    st.warning(f"⚠️ Global Database not detected. Code: {e}")
     users_col = None
 
 # Constants
