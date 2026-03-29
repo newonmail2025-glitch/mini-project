@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PowerPlant AI — Energy Prediction System</title>
+  <meta name="description" content="Real-time power plant energy output prediction powered by an Artificial Neural Network and live weather data." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Background grid ── -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">PowerPlant <span class="logo-accent">AI</span></span>
+      </div>
+      <div class="header-badge">Neural Network v1.0</div>
+    </div>
+  </header>
+
+  <!-- ── Hero ── -->
+  <section class="hero">
+    <h1 class="hero-title">Energy Output <span class="gradient-text">Prediction</span></h1>
+    <p class="hero-sub">Powered by a trained Artificial Neural Network — feed it sensor readings or pull live weather data automatically.</p>
+  </section>
+
+  <!-- ── Main Content ── -->
+  <main class="main-content">
+
+    <!-- ── Tab Switcher ── -->
+    <div class="tabs" role="tablist">
+      <button id="tab-manual" class="tab active" role="tab" aria-selected="true" onclick="switchTab('manual')">
+        🎛️ Manual Input
+      </button>
+      <button id="tab-weather" class="tab" role="tab" aria-selected="false" onclick="switchTab('weather')">
+        🌤️ Live Weather
+      </button>
+    </div>
+
+    <!-- ── Panel: Manual Input ── -->
+    <div id="panel-manual" class="panel active" role="tabpanel">
+      <div class="panel-header">
+        <h2>Sensor Parameters</h2>
+        <p>Enter the four environmental readings from the plant sensors.</p>
+      </div>
+      <div class="input-grid">
+        <div class="input-group">
+          <label for="AT">🌡️ Ambient Temperature (AT)</label>
+          <div class="input-wrapper">
+            <input type="number" id="AT" step="0.01" placeholder="e.g. 14.96" />
+            <span class="unit">°C</span>
+          </div>
+          <div class="input-hint">Typical range: 1 – 37 °C</div>
+        </div>
+        <div class="input-group">
+          <label for="V">💨 Exhaust Vacuum (V)</label>
+          <div class="input-wrapper">
+            <input type="number" id="V" step="0.01" placeholder="e.g. 41.76" />
+            <span class="unit">cmHg</span>
+          </div>
+          <div class="input-hint">Typical range: 25 – 81 cmHg</div>
+        </div>
+        <div class="input-group">
+          <label for="AP">🔵 Atmospheric Pressure (AP)</label>
+          <div class="input-wrapper">
+            <input type="number" id="AP" step="0.01" placeholder="e.g. 1024.07" />
+            <span class="unit">mbar</span>
+          </div>
+          <div class="input-hint">Typical range: 992 – 1033 mbar</div>
+        </div>
+        <div class="input-group">
+          <label for="RH">💧 Relative Humidity (RH)</label>
+          <div class="input-wrapper">
+            <input type="number" id="RH" step="0.01" placeholder="e.g. 73.17" />
+            <span class="unit">%</span>
+          </div>
+          <div class="input-hint">Typical range: 25 – 100 %</div>
+        </div>
+      </div>
+      <button class="predict-btn" id="btn-manual" onclick="predictManual()">
+        <span class="btn-icon">⚙️</span>
+        <span>Run Prediction</span>
+        <div class="btn-shimmer"></div>
+      </button>
+    </div>
+
+    <!-- ── Panel: Weather ── -->
+    <div id="panel-weather" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h2>Live Weather Prediction</h2>
+        <p>Enter a city name to automatically pull real-time weather data and predict power output.</p>
+      </div>
+      <div class="city-search">
+        <div class="input-group full-width">
+          <label for="city">🏙️ City Name</label>
+          <div class="input-wrapper">
+            <input type="text" id="city" placeholder="e.g. Hyderabad, London, Dubai" />
+            <span class="unit">🔍</span>
+          </div>
+        </div>
+      </div>
+      <button class="predict-btn" id="btn-weather" onclick="predictWeather()">
+        <span class="btn-icon">🌤️</span>
+        <span>Fetch & Predict</span>
+        <div class="btn-shimmer"></div>
+      </button>
+
+      <!-- Weather cards shown after fetch -->
+      <div id="weather-cards" class="weather-cards hidden">
+        <div class="w-card" id="wc-temp">
+          <div class="wc-icon">🌡️</div>
+          <div class="wc-label">Temperature</div>
+          <div class="wc-value" id="wv-temp">--</div>
+          <div class="wc-unit">°C</div>
+        </div>
+        <div class="w-card" id="wc-hum">
+          <div class="wc-icon">💧</div>
+          <div class="wc-label">Humidity</div>
+          <div class="wc-value" id="wv-hum">--</div>
+          <div class="wc-unit">%</div>
+        </div>
+        <div class="w-card" id="wc-pres">
+          <div class="wc-icon">🔵</div>
+          <div class="wc-label">Pressure</div>
+          <div class="wc-value" id="wv-pres">--</div>
+          <div class="wc-unit">mbar</div>
+        </div>
+        <div class="w-card" id="wc-vac">
+          <div class="wc-icon">💨</div>
+          <div class="wc-label">Est. Vacuum</div>
+          <div class="wc-value" id="wv-vac">--</div>
+          <div class="wc-unit">cmHg</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Result Card ── -->
+    <div id="result-section" class="result-section hidden">
+      <div class="result-card">
+        <div class="result-header">
+          <div class="result-icon-wrap">⚡</div>
+          <div>
+            <div class="result-label">Predicted Power Output</div>
+            <div id="result-city" class="result-city"></div>
+          </div>
+        </div>
+
+        <div class="power-display">
+          <span id="result-power" class="power-value">---</span>
+          <span class="power-unit">MW</span>
+        </div>
+
+        <!-- Gauge bar -->
+        <div class="gauge-wrap">
+          <div class="gauge-track">
+            <div id="gauge-fill" class="gauge-fill"></div>
+          </div>
+          <div class="gauge-labels">
+            <span>0 MW</span>
+            <span id="gauge-rated">480 MW (Rated)</span>
+          </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-label">Rated Capacity</div>
+            <div id="stat-rated" class="stat-value">480 MW</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Deviation</div>
+            <div id="stat-deviation" class="stat-value deviation">-- MW</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Efficiency</div>
+            <div id="stat-efficiency" class="stat-value">-- %</div>
+          </div>
+        </div>
+
+        <div id="result-status" class="result-status"></div>
+      </div>
+    </div>
+
+    <!-- ── Error Banner ── -->
+    <div id="error-banner" class="error-banner hidden">
+      <span class="error-icon">⚠️</span>
+      <span id="error-message">Something went wrong.</span>
+    </div>
+
+    <!-- ── Loader ── -->
+    <div id="loader" class="loader hidden">
+      <div class="loader-ring"></div>
+      <span id="loader-text">Running prediction…</span>
+    </div>
+
+  </main>
+
+  <!-- ── Footer ── -->
+  <footer class="footer">
+    <p>PowerPlant AI &nbsp;•&nbsp; ANN-powered energy prediction &nbsp;•&nbsp; Built with FastAPI + TensorFlow</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
