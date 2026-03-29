@@ -1,11 +1,14 @@
 import streamlit as st
-import requests
-import plotly.graph_objects as go
+import tensorflow as tf
+import joblib
 import pandas as pd
-import time
 import numpy as np
+import plotly.graph_objects as go
 import pymongo
 import bcrypt
+import time
+from backend.utils.preprocessor import preprocess_input
+from backend.utils.weather import fetch_weather_data, estimate_vacuum_value
 from database import init_db, save_prediction, get_history, clear_history
 import os
 from dotenv import load_dotenv
@@ -17,8 +20,25 @@ init_db()
 
 st.set_page_config(page_title="PowerPlant AI", page_icon="⚡", layout="wide", initial_sidebar_state="collapsed")
 
-API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
+# ─── Constants (Absolute Paths) ──────────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Note: dashboard.py is in /frontend, we need to go up one to /backend/model
+MODEL_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "backend", "model", "energy_model.keras"))
+SCALER_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "backend", "model", "scaler.pkl"))
 RATED_CAPACITY = 480.0
+
+@st.cache_resource
+def load_industrial_model():
+    try:
+        if os.path.exists(MODEL_PATH):
+            m = tf.keras.models.load_model(MODEL_PATH)
+            s = joblib.load(SCALER_PATH)
+            return m, s
+    except Exception as e:
+        st.error(f"ENGINE_FAILURE: {e}")
+    return None, None
+
+model, scaler = load_industrial_model()
 
 # Major Indian Cities for Dropdown
 INDIAN_CITIES = sorted([
@@ -69,42 +89,50 @@ SCENARIOS = {
 }
 
 def run_prediction(at, v, ap, rh):
+    if model is None or scaler is None:
+        st.error("AI Engine not initialized. Simulation suspended. // ENGINE_OFFLINE")
+        return
     with st.spinner("🧠 INITIATING NEURAL INFERENCE..."):
         try:
-            res = requests.post(f"{API_BASE}/predict", json={"AT": at, "V": v, "AP": ap, "RH": rh}, timeout=10)
-            if res.status_code == 200:
-                data = res.json()
-                st.session_state.result = data
-                st.session_state.weather_data = None
-                save_prediction(temperature=at, vacuum=v, pressure=ap, humidity=rh, predicted_power=data["predicted_power"], scenario=st.session_state.get("last_scenario", "Manual"))
-                time.sleep(0.5) # Slight delay for visual "thought" effect
-            else:
-                st.error(f"API Error: {res.json().get('detail', 'Unknown error')}")
+            input_scaled = preprocess_input(at, v, ap, rh, scaler)
+            pred = model.predict(input_scaled, verbose=0)
+            p_val = float(pred[0][0])
+            st.session_state.result = {"predicted_power": p_val}
+            save_prediction(at, v, ap, rh, p_val, st.session_state.last_scenario)
+            time.sleep(0.3)
+            st.rerun()
         except Exception as e:
-            st.error(f"Backend Connection Error: {e}")
+            st.error(f"Inference Error: {e}")
 
 def fetch_and_predict(city):
     if not city: return
+    if model is None or scaler is None:
+        st.error("AI Engine not initialized.")
+        return
     try:
-        res = requests.get(f"{API_BASE}/weather-prediction", params={"city": city}, timeout=15)
-        if res.status_code == 200:
-            data = res.json()
-            # If Hyderabad (Live Tab), we isolate this into a special storage
+        data = fetch_weather_data(city)
+        if data:
+            v_val = estimate_vacuum_value(data["temperature"])
+            # Run inference locally
+            input_scaled = preprocess_input(data["temperature"], v_val, data["pressure"], data["humidity"], scaler)
+            pred = model.predict(input_scaled, verbose=0)
+            p_val = float(pred[0][0])
+            
+            # Combine
+            full_data = {**data, "v": v_val, "predicted_power": p_val}
+            
             if city == "Hyderabad":
-                st.session_state.live_data = data
+                st.session_state.live_data = full_data
             
-            # Global variables for simulation results (keep these for backward compatibility elsewhere if needed)
-            st.session_state.result = data
-            st.session_state.weather_data = data
-            save_prediction(temperature=data["temperature"], vacuum=data.get("v", 0), pressure=data["pressure"], humidity=data["humidity"], predicted_power=data["predicted_power"], scenario=f"Live Weather: {data.get('city')}")
+            st.session_state.result = full_data
+            st.session_state.weather_data = full_data
+            save_prediction(temperature=data["temperature"], vacuum=v_val, pressure=data["pressure"], humidity=data["humidity"], predicted_power=p_val, scenario=f"Live Weather: {city}")
             
-            # These only update the global "simulation" state IF it's not a background update
             if not st.session_state.get('live_monitoring'):
-                st.session_state.AT, st.session_state.V, st.session_state.AP, st.session_state.RH = data["temperature"], data.get("v", 0), data["pressure"], data["humidity"]
-        else:
-            st.session_state.weather_error = f"Weather API Error: {res.json().get('detail')}"
+                st.session_state.AT, st.session_state.V, st.session_state.AP, st.session_state.RH = data["temperature"], v_val, data["pressure"], data["humidity"]
+            st.rerun()
     except Exception as e:
-        st.session_state.weather_error = f"Backend Connection Error: {e}"
+        st.session_state.weather_error = f"System Processing Error: {e}"
 
 # ─── Authentication Logic ───
 def hash_pass(pwd): return bcrypt.hashpw(pwd.encode(), bcrypt.gensalt())
