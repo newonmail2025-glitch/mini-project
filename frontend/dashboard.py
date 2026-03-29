@@ -17,7 +17,7 @@ init_db()
 
 st.set_page_config(page_title="PowerPlant AI", page_icon="⚡", layout="wide", initial_sidebar_state="collapsed")
 
-API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
 RATED_CAPACITY = 480.0
 
 # Major Indian Cities for Dropdown
@@ -404,15 +404,25 @@ elif st.session_state.app_state == "Home":
 
         with right_side:
             res = st.session_state.result
-            p_val = res["predicted_power"]
-            eff = (p_val / RATED_CAPACITY) * 100
-            status_color = "#10b981" if p_val > 470 else "#f59e0b" if p_val > 440 else "#ef4444"
+            if res and isinstance(res, dict) and "predicted_power" in res:
+                p_val = res["predicted_power"]
+                eff = (p_val / RATED_CAPACITY) * 100
+                status_color = "#10b981" if p_val > 470 else "#f59e0b" if p_val > 440 else "#ef4444"
+                status_text = 'OPTIMAL' if p_val > 470 else 'MODERATE' if p_val > 440 else 'CRITICAL'
+                eff_delta = (eff - 90)
+            else:
+                p_val = 0.0
+                eff = 0.0
+                status_color = "#64748b"
+                status_text = 'INITIALIZING'
+                eff_delta = 0.0
+
             st.markdown(f"""
             <div class="status-msg" style="border-left: 5px solid {status_color};">
                 <div style="width:12px; height:12px; border-radius:50%; background:{status_color};"></div>
                 <div>
-                    <div style="font-weight:700; color:#f8fafc; font-size:0.95rem;">System Performance: {'OPTIMAL' if p_val > 470 else 'MODERATE' if p_val > 440 else 'CRITICAL'}</div>
-                    <div style="font-size:0.75rem; color:{status_color}; font-weight:700; letter-spacing:1px; text-transform:uppercase;">EFFICIENCY DELTA: {(eff - 90):+.1f}% VS DESIGN BASELINE</div>
+                    <div style="font-weight:700; color:#f8fafc; font-size:0.95rem;">System Performance: {status_text}</div>
+                    <div style="font-size:0.75rem; color:{status_color}; font-weight:700; letter-spacing:1px; text-transform:uppercase;">EFFICIENCY DELTA: {eff_delta:+.1f}% VS DESIGN BASELINE</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
