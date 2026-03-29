@@ -1,4 +1,17 @@
+import os
+import sys
+
+# Industrial Path Resolution: Ensure project root is in PYTHONPATH
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
+
 import streamlit as st
+
+# Check Engine Pulse
+if not os.path.exists(os.path.join(PROJECT_ROOT, "backend")):
+    st.error("ENGINE_PROTOCOL_ERROR: Backend suite not found. // SYSTEM_OFFLINE")
 import tensorflow as tf
 import joblib
 import pandas as pd

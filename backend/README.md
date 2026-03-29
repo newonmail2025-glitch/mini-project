@@ -4,3 +4,4 @@
 (.venv) PS C:\mini-project\frontend> streamlit run dashboard.py
      
 >>                                                                             
+c:\mini-project\.venv\Scripts\Activate.ps1
